@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
-from math import sqrt
+from math import sqrt, pi, cos, sin
+import os
 
 
-class point():
+class point(object):
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -17,7 +18,7 @@ class point():
 def _prnt(x):
     return x.prnt()
     
-class line():
+class line(object):
     def __init__(self, start, end, tp="", text=None):
         self.start = start
         self.end = end
@@ -28,7 +29,7 @@ class line():
         if self.text:
             ins = "node [midway, above] {{\\tiny {}}}".format(self.text)
         return "\\draw [{}] ".format(self.tp)+self.start.prnt()\
-        +"--"+self.end.prnt()+ins+";"
+        +"--"+self.end.prnt()+ins
 class textnode():
     def __init__(self,s):
         self.str = s
@@ -66,7 +67,7 @@ class rectangle():
         shade = '\\shade[left color={}!50] '.format(self.color) +\
                 '--'.join(map(_prnt, [self.node1, self.node2, 
                                       node3, self.node4, 
-                                      textnode("cycle;")]))
+                                      textnode("cycle")]))
         return path + '\n' + shade
     def up(self, width, height, up, color="blue", text=False):
         left = (self.width-width)/2.0
@@ -89,14 +90,21 @@ class rectangle():
         return circleset(l)
         
         
-class circle():
-    def __init__(self, center, color, radius=.05):
+class circle(object):
+    def __init__(self, center, fill_color, radius=.05, tp="", color="blue"):
         self.center = center
         self.radius = radius
+        self.fill_color = fill_color
+        self.tp = tp
         self.color = color
+    def point(self, angle):
+        radian = angle/180.*pi
+        return self.center.add(point(cos(radian), sin(radian)).\
+        scale(self.radius))
     def prnt(self):
-        return "\\draw[fill={}!50] {} circle ({});"\
-        .format(self.color, self.center.prnt(), self.radius)
+        return "\\draw[{},color={},fill={}!50] {} circle ({})"\
+        .format(self.tp, self.color, self.fill_color, self.center.prnt(),\
+        self.radius)
 def projection(a, b):
     return [line(a.node1, b.node1,"dotted"),
             line(a.node2, b.node2,"dotted"),
@@ -116,7 +124,7 @@ class circleset():
     def __getitem__(self, k):
         return self.l[k]
     def prnt(self):
-        return '\n'.join(map(_prnt, self.l))
+        return ';\n'.join(map(_prnt, self.l))
     def up_c(self, num, color, up):
         center = self.l[0].center.add(self.l[1].center).scale(.5)
         center = center.add(point(0,up))
@@ -147,7 +155,7 @@ def proj_c(l1, l2, tp="dotted"):
         for circle2 in ll2:
             l.append(line(circle1.center, circle2.center, tp))
     return l
-def print2tex(fname, caption, string,scale=3):
+def print2tex(fname, caption, string,scale=4):
     s = "\\documentclass{{article}}\n\
         \\usepackage{{tikz}}\n\
         \\usepackage{{caption}}\n\
@@ -166,8 +174,14 @@ def print2tex(fname, caption, string,scale=3):
         print>>f, s,
         
 if __name__ == "__main__":
-    r1 = rectangle(point(0,0),400,62, text=True)
-    r11 = rectangle(point(0,0), 120, 10)
+    os.chdir(os.path.dirname(__file__))
+    os.chdir("../Tikz test")
+    r0 = rectangle(point(-8,0),400,62,color="violet",text=True)
+    r00 = rectangle(r0.node1,10,62, color="violet")
+    r1 = rectangle(r0.node1.add(point(0,1)),400,62)
+    r01 = rectangle(r1.node1,10,62)
+    r11 = rectangle(r1.node1,121,10)
+    l0 = line(r01.node4, r01.node4.add(r11.node2).add(r11.node1.scale(-1)))
     r2 = r1.up(280, 62, 1,"yellow")
     r22 = rectangle(r2.node1, 10,10, color=r2.color)
     r3 = r2.up(280, 62, .1,"green")
@@ -178,7 +192,9 @@ if __name__ == "__main__":
     r44 = rectangle(r4.node1, 40, 10, color="cyan")
     t1 = textnode("\\begin{pgfonlayer}{background}")
     t2 = textnode("\\end{pgfonlayer}")
-    string = '\n'.join(map(_prnt, [r1,r11,r2,r22,r3,r4,r44,l,l2,l3]\
-        +projr_c(r44, l[0])+projection(r11, r22)+[t1]+proj_c(l,l2,"ultra thin")\
+    string = ';\n'.join(map(_prnt, [r0,r00,r1,r01,r11,l0,r2,r22,r3,r4,r44,
+                                   l,l2,l3]\
+        +projr_c(r44, l[0])+projection(r00,r01)+projection(r11, r22)+\
+        [t1]+proj_c(l,l2,"ultra thin")\
         +proj_c(l2,l3,"ultra thin")+[t2]))
     print2tex("test.tex", "model architecture", string)
